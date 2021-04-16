@@ -3,10 +3,16 @@ project(path_tracing)
 
 set(CMAKE_CXX_STANDARD 17)
 
+set(${PROJECT_NAME}_SOURCE_FILES
+        RenderTools.h
+        RenderTools.cpp
+        )
+
 # Packages
 find_package(OpenCV REQUIRED)
 include_directories( ${OpenCV_INCLUDE_DIRS} )
 
-add_executable(path_tracing main.cpp)
+add_executable(path_tracing main.cpp ${${PROJECT_NAME}_SOURCE_FILES})
+add_executable(code igor_code/code.cpp)
 
 target_link_libraries( path_tracing PRIVATE opencv_core opencv_highgui )
