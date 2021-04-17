@@ -1,6 +1,8 @@
 #ifndef RENDER_TOOLS_H
 #define RENDER_TOOLS_H
 
+#define _USE_MATH_DEFINES
+
 #include <opencv2/core/matx.hpp>
 
 #include <vector>
@@ -67,9 +69,7 @@ public:
   Material() {
   }
 
-  Material(const std::map<int, double> &spec_Kd_color) {
-    this->spec_Kd_color = spec_Kd_color;
-  }
+  Material(const std::map<int, double> &spec_Kd_color);
 };
 
 //==============================================================================
@@ -80,77 +80,25 @@ class Triangle {
 public:
   cv::Vec3d v0, v1, v2;
   int object_id = -1;
-  Material material;
+  const Material* material;
 
   Triangle() {
   }
 
-  Triangle(const cv::Vec3d &v0, const cv::Vec3d &v1, const cv::Vec3d &v2) {
-    this->v0 = v0;
-    this->v1 = v1;
-    this->v2 = v2;
-  }
+  Triangle(const cv::Vec3d &v0, const cv::Vec3d &v1, const cv::Vec3d &v2);
 
   Triangle(const cv::Vec3d &v0, const cv::Vec3d &v1, const cv::Vec3d &v2,
-           const int &object_id) {
-    this->v0 = v0;
-    this->v1 = v1;
-    this->v2 = v2;
-    this->object_id = object_id;
-  }
+           const int &object_id);
 
   Triangle(const cv::Vec3d &v0, const cv::Vec3d &v1, const cv::Vec3d &v2,
            const int &object_id,
-           const Material &material) {
-    this->v0 = v0;
-    this->v1 = v1;
-    this->v2 = v2;
-    this->object_id = object_id;
-    this->material = material;
-  }
+           const Material *material);
 
-  cv::Vec3d getNormal() const {
-    cv::Vec3d normal = (v1 - v0).cross(v2 - v0);
-    normal = get_normalized(normal);
-    return normal;
-  }
+  cv::Vec3d getNormal() const;
 
-  cv::Vec3d getNormalByObserver(const cv::Vec3d &observer) const {
-    cv::Vec3d normal = (v1 - v0).cross(v2 - v0);
+  cv::Vec3d getNormalByObserver(const cv::Vec3d &observer) const;
 
-    normal = get_normalized(normal);
-
-    if (get_normalized(observer).dot(normal) < 0) {
-      normal = (v2 - v0).cross(v1 - v0);
-      normal = get_normalized(normal);
-    }
-
-    return normal;
-  }
-
-  bool intersect(const Ray &ray, double &t) const {
-    cv::Vec3d e1 = v1 - v0;
-    cv::Vec3d e2 = v2 - v0;
-    cv::Vec3d pvec = ray.direction.cross(e2);
-    double det = e1.dot(pvec);
-
-    if (det < 1e-8 && det > -1e-8)
-      return 0;
-
-    double inv_det = 1 / det;
-    cv::Vec3d tvec = ray.origin - v0;
-    double u = tvec.dot(pvec) * inv_det;
-    if (u < 0 || u > 1)
-      return 0;
-
-    cv::Vec3d qvec = tvec.cross(e1);
-    double v = ray.direction.dot(qvec) * inv_det;
-    if (v < 0 || v + u > 1)
-      return 0;
-
-    t = e2.dot(qvec) * inv_det;
-    return t > 1e-8;
-  }
+  bool intersect(const Ray &ray, double &t) const;
 };
 
 //==============================================================================

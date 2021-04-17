@@ -33,13 +33,12 @@ bool Scene::intersect(const Ray &ray, cv::Vec3d &hit, cv::Vec3d &N,
       triangle_dist = t;
       hit = ray.origin + ray.direction * t;
       N = triangles[i].getNormalByObserver(ray.origin - hit);
-      material = triangles[i].material;
+      material = *triangles[i].material;
     }
   }
 
   return triangle_dist < std::numeric_limits<double>::max();
 }
-
 
 Ray fill_wavelength(Ray ray, std::vector<Light> lights) {
   std::map<int, double> bright_coefs;
@@ -67,6 +66,81 @@ bool check(std::map<int, double> L) {
   }
 
   return false;
+}
+
+//==============================================================================
+//================================ Material ====================================
+//==============================================================================
+Material::Material(const std::map<int, double> &spec_Kd_color) {
+    this->spec_Kd_color = spec_Kd_color;
+}
+
+//==============================================================================
+//================================ Triangle ====================================
+//==============================================================================
+
+Triangle::Triangle(const cv::Vec3d &v0, const cv::Vec3d &v1, const cv::Vec3d &v2) {
+    this->v0 = v0;
+    this->v1 = v1;
+    this->v2 = v2;
+}
+
+Triangle::Triangle(const cv::Vec3d &v0, const cv::Vec3d &v1, const cv::Vec3d &v2,
+         const int &object_id) {
+    this->v0 = v0;
+    this->v1 = v1;
+    this->v2 = v2;
+    this->object_id = object_id;
+}
+
+Triangle::Triangle(const cv::Vec3d &v0, const cv::Vec3d &v1, const cv::Vec3d &v2,
+         const int &object_id,
+         const Material *material):
+    v0(v0), v1(v1), v2(v2), object_id(object_id), material(material) {
+
+}
+
+cv::Vec3d Triangle::getNormal() const {
+    cv::Vec3d normal = (v1 - v0).cross(v2 - v0);
+    normal = get_normalized(normal);
+    return normal;
+}
+
+cv::Vec3d Triangle::getNormalByObserver(const cv::Vec3d &observer) const {
+    cv::Vec3d normal = (v1 - v0).cross(v2 - v0);
+
+    normal = get_normalized(normal);
+
+    if (get_normalized(observer).dot(normal) < 0) {
+        normal = (v2 - v0).cross(v1 - v0);
+        normal = get_normalized(normal);
+    }
+
+    return normal;
+}
+
+bool Triangle::intersect(const Ray &ray, double &t) const {
+    cv::Vec3d e1 = v1 - v0;
+    cv::Vec3d e2 = v2 - v0;
+    cv::Vec3d pvec = ray.direction.cross(e2);
+    double det = e1.dot(pvec);
+
+    if (det < 1e-8 && det > -1e-8)
+        return 0;
+
+    double inv_det = 1 / det;
+    cv::Vec3d tvec = ray.origin - v0;
+    double u = tvec.dot(pvec) * inv_det;
+    if (u < 0 || u > 1)
+        return 0;
+
+    cv::Vec3d qvec = tvec.cross(e1);
+    double v = ray.direction.dot(qvec) * inv_det;
+    if (v < 0 || v + u > 1)
+        return 0;
+
+    t = e2.dot(qvec) * inv_det;
+    return t > 1e-8;
 }
 
 //==============================================================================
@@ -106,41 +180,36 @@ Scene::Scene() {
   spec_Kd_color_brs_0.insert(std::make_pair(500, 0.747));
   spec_Kd_color_brs_0.insert(std::make_pair(600, 0.74));
   spec_Kd_color_brs_0.insert(std::make_pair(700, 0.737));
-  Material brs_0 = Material(spec_Kd_color_brs_0);
+  materials.push_back(Material(spec_Kd_color_brs_0));
 
   std::map<int, double> spec_Kd_color_brs_1;
   spec_Kd_color_brs_1.insert(std::make_pair(400, 0.092));
   spec_Kd_color_brs_1.insert(std::make_pair(500, 0.285));
   spec_Kd_color_brs_1.insert(std::make_pair(600, 0.16));
   spec_Kd_color_brs_1.insert(std::make_pair(700, 0.159));
-  Material brs_1 = Material(spec_Kd_color_brs_1);
+  materials.push_back(Material(spec_Kd_color_brs_1));
 
   std::map<int, double> spec_Kd_color_brs_2;
   spec_Kd_color_brs_2.insert(std::make_pair(400, 0.04));
   spec_Kd_color_brs_2.insert(std::make_pair(500, 0.058));
   spec_Kd_color_brs_2.insert(std::make_pair(600, 0.287));
   spec_Kd_color_brs_2.insert(std::make_pair(700, 0.642));
-  Material brs_2 = Material(spec_Kd_color_brs_2);
+  materials.push_back(Material(spec_Kd_color_brs_2));
 
   std::map<int, double> spec_Kd_color_brs_3;
   spec_Kd_color_brs_3.insert(std::make_pair(400, 0.343));
   spec_Kd_color_brs_3.insert(std::make_pair(500, 0.747));
   spec_Kd_color_brs_3.insert(std::make_pair(600, 0.74));
   spec_Kd_color_brs_3.insert(std::make_pair(700, 0.737));
-  Material brs_3 = Material(spec_Kd_color_brs_3);
+  materials.push_back(Material(spec_Kd_color_brs_3));
 
   std::map<int, double> spec_Kd_color_brs_4;
   spec_Kd_color_brs_4.insert(std::make_pair(400, 0.343));
   spec_Kd_color_brs_4.insert(std::make_pair(500, 0.747));
   spec_Kd_color_brs_4.insert(std::make_pair(600, 0.74));
   spec_Kd_color_brs_4.insert(std::make_pair(700, 0.737));
-  Material brs_4 = Material(spec_Kd_color_brs_4);
+  materials.push_back(Material(spec_Kd_color_brs_4));
 
-  materials.push_back(brs_0);
-  materials.push_back(brs_1);
-  materials.push_back(brs_2);
-  materials.push_back(brs_3);
-  materials.push_back(brs_4);
 
   // Lights
   //Хардкод, так как в файле нет свойств и положения источника света
@@ -197,7 +266,7 @@ int Scene::load(const std::string &path_to_file) {
                                    points[points_size + number_of_triangles[1]],
                                    points[points_size + number_of_triangles[2]],
                                    object_id[object_id.size() - 1],
-                                   materials[object_id[object_id.size() - 1]]
+                                   &materials[object_id[object_id.size() - 1]]
       );
       triangles.push_back(triangle);
       continue;
