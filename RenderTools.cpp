@@ -21,27 +21,6 @@ cv::Vec3d get_normalized(const cv::Vec3d &vec) {
   return vec / length;
 }
 
-//// FIXME: Change signature (material)
-//bool Scene::intersect(const Ray &ray, cv::Vec3d &hit, cv::Vec3d &N,
-//                      Material &material) {
-//
-//  double min_distance_to_triangle = std::numeric_limits<double>::max();
-//
-//  for (auto &triangle : triangles) {
-//    double distance_to_triangle = -1.0;
-//    if (triangle.intersect(ray, distance_to_triangle) &&
-//        distance_to_triangle < min_distance_to_triangle) {
-//      min_distance_to_triangle = distance_to_triangle;
-//      hit = ray.origin + ray.direction * distance_to_triangle;
-//      N = triangle.getNormalByObserver(ray.origin - hit);
-//      material = *triangle.material;
-//    }
-//  }
-//
-//  return min_distance_to_triangle < std::numeric_limits<double>::max();
-//>>>>>>> master
-//}
-
 Ray fill_wavelength(Ray ray, std::vector<Light> lights) {
   std::map<std::string, double> bright_coefs;
   std::map<std::string, double> L;
