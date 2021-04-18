@@ -73,7 +73,7 @@ vec3 cross(const vec3& a, const vec3& b) {
 struct Ray {
     vec3 origin;
     vec3 direction;
-    map <int, double> bright_coefs; //spec
+    map <int, double> bright_coefficient; //spec
     map <int, double> L;
 
     Ray() {}
@@ -86,7 +86,7 @@ struct Ray {
     Ray(const vec3& new_origin, const vec3& new_direction, const map<int, double>& bright_coefs, const map<int, double>& L) {
         this->origin = origin;
         this->direction = direction;
-        this->bright_coefs = bright_coefs;
+        this->bright_coefficient = bright_coefs;
         this->L = L;
     }
 };
@@ -247,7 +247,7 @@ Ray cast_ray(Ray& ray, const vector<Triangle>& triangles, const vector<Light>& l
     } 
 
     for (auto& item : material.spec_Kd_color) {
-        ray.bright_coefs.find(item.first)->second = (ray.bright_coefs.find(item.first)->second) * item.second;
+        ray.bright_coefficient.find(item.first)->second = (ray.bright_coefficient.find(item.first)->second) * item.second;
     }
 
     for (int i = 0; i < lights.size(); i++) {
@@ -260,7 +260,7 @@ Ray cast_ray(Ray& ray, const vector<Triangle>& triangles, const vector<Light>& l
 
         for (auto& item : ray.L) {
             double E = ((lights[i].spec_intensity.find(item.first)->second) / (dist * dist)) * cos_teta;
-            item.second = (E * ray.bright_coefs.find(item.first)->second) / (double)M_PI;
+            item.second = (E * ray.bright_coefficient.find(item.first)->second) / (double)M_PI;
         }
     }
 
@@ -278,7 +278,7 @@ Ray fill_wavelength(Ray ray, vector<Light> lights) {
         }
     }
 
-    ray.bright_coefs = bright_coefs;
+    ray.bright_coefficient = bright_coefs;
     ray.L = L;
 
     return ray;
