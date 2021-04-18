@@ -25,19 +25,20 @@ cv::Vec3d get_normalized(const cv::Vec3d &vec) {
 bool Scene::intersect(const Ray &ray, cv::Vec3d &hit, cv::Vec3d &N,
                       Material &material) {
 
-  double triangle_dist = std::numeric_limits<double>::max();
+  double min_distance_to_triangle = std::numeric_limits<double>::max();
 
-  for (int i = 0; i < triangles.size(); i++) {
-    double t;
-    if (triangles[i].intersect(ray, t) && t < triangle_dist) {
-      triangle_dist = t;
-      hit = ray.origin + ray.direction * t;
-      N = triangles[i].getNormalByObserver(ray.origin - hit);
-      material = *triangles[i].material;
+  for (auto &triangle : triangles) {
+    double distance_to_triangle = -1.0;
+    if (triangle.intersect(ray, distance_to_triangle) &&
+        distance_to_triangle < min_distance_to_triangle) {
+      min_distance_to_triangle = distance_to_triangle;
+      hit = ray.origin + ray.direction * distance_to_triangle;
+      N = triangle.getNormalByObserver(ray.origin - hit);
+      material = *triangle.material;
     }
   }
 
-  return triangle_dist < std::numeric_limits<double>::max();
+  return min_distance_to_triangle < std::numeric_limits<double>::max();
 }
 
 Ray fill_wavelength(Ray ray, std::vector<Light> lights) {
@@ -51,104 +52,117 @@ Ray fill_wavelength(Ray ray, std::vector<Light> lights) {
     }
   }
 
-  ray.bright_coefs = bright_coefs;
+  ray.bright_coefficient = bright_coefs;
   ray.L = L;
 
   return ray;
 }
+//==============================================================================
+//================================ Ray =========================================
+//==============================================================================
+Ray::Ray(const cv::Vec3d &origin, const cv::Vec3d &direction) : origin(origin),
+                                                                direction(
+                                                                    direction) {
+}
 
-bool check(std::map<int, double> L) {
-
-  for (auto &item : L) {
-    if (item.second != 0) {
-      return true;
-    }
-  }
-
-  return false;
+Ray::Ray(const cv::Vec3d &new_origin, const cv::Vec3d &new_direction,
+         std::map<int, double> bright_coefs, std::map<int, double> L) :
+    origin(origin), direction(direction),
+    bright_coefficient(std::move(bright_coefs)), L(std::move(L)) {
 }
 
 //==============================================================================
 //================================ Material ====================================
 //==============================================================================
-Material::Material(const std::map<int, double> &spec_Kd_color) {
-    this->spec_Kd_color = spec_Kd_color;
+Material::Material(std::map<int, double> spec_Kd_color) : spec_Kd_color(
+    std::move(spec_Kd_color)) {
 }
 
 //==============================================================================
 //================================ Triangle ====================================
 //==============================================================================
-
-Triangle::Triangle(const cv::Vec3d &v0, const cv::Vec3d &v1, const cv::Vec3d &v2) {
-    this->v0 = v0;
-    this->v1 = v1;
-    this->v2 = v2;
+Triangle::Triangle(const cv::Vec3d &v0, const cv::Vec3d &v1,
+                   const cv::Vec3d &v2) : v0(v0), v1(v1), v2(v2) {
 }
 
-Triangle::Triangle(const cv::Vec3d &v0, const cv::Vec3d &v1, const cv::Vec3d &v2,
-         const int &object_id) {
-    this->v0 = v0;
-    this->v1 = v1;
-    this->v2 = v2;
-    this->object_id = object_id;
+Triangle::Triangle(const cv::Vec3d &v0, const cv::Vec3d &v1,
+                   const cv::Vec3d &v2,
+                   const int &object_id) : v0(v0), v1(v1), v2(v2),
+                                           object_id(object_id) {
 }
 
-Triangle::Triangle(const cv::Vec3d &v0, const cv::Vec3d &v1, const cv::Vec3d &v2,
-         const int &object_id,
-         const Material *material):
+Triangle::Triangle(const cv::Vec3d &v0, const cv::Vec3d &v1,
+                   const cv::Vec3d &v2,
+                   const int &object_id,
+                   const Material *material) :
     v0(v0), v1(v1), v2(v2), object_id(object_id), material(material) {
 
 }
 
 cv::Vec3d Triangle::getNormal() const {
-    cv::Vec3d normal = (v1 - v0).cross(v2 - v0);
-    normal = get_normalized(normal);
-    return normal;
+  cv::Vec3d normal = (v1 - v0).cross(v2 - v0);
+  normal = get_normalized(normal);
+  return normal;
 }
 
 cv::Vec3d Triangle::getNormalByObserver(const cv::Vec3d &observer) const {
-    cv::Vec3d normal = (v1 - v0).cross(v2 - v0);
+  cv::Vec3d normal = (v1 - v0).cross(v2 - v0);
 
+  normal = get_normalized(normal);
+
+  if (get_normalized(observer).dot(normal) < 0) {
+    normal = (v2 - v0).cross(v1 - v0);
     normal = get_normalized(normal);
+  }
 
-    if (get_normalized(observer).dot(normal) < 0) {
-        normal = (v2 - v0).cross(v1 - v0);
-        normal = get_normalized(normal);
-    }
-
-    return normal;
+  return normal;
 }
 
 bool Triangle::intersect(const Ray &ray, double &t) const {
-    cv::Vec3d e1 = v1 - v0;
-    cv::Vec3d e2 = v2 - v0;
-    cv::Vec3d pvec = ray.direction.cross(e2);
-    double det = e1.dot(pvec);
+  cv::Vec3d e1 = v1 - v0;
+  cv::Vec3d e2 = v2 - v0;
+  cv::Vec3d pvec = ray.direction.cross(e2);
+  double det = e1.dot(pvec);
 
-    if (det < 1e-8 && det > -1e-8)
-        return 0;
+  if (det < 1e-8 && det > -1e-8) {
+    return false;
+  }
 
-    double inv_det = 1 / det;
-    cv::Vec3d tvec = ray.origin - v0;
-    double u = tvec.dot(pvec) * inv_det;
-    if (u < 0 || u > 1)
-        return 0;
+  double inv_det = 1 / det;
+  cv::Vec3d tvec = ray.origin - v0;
+  double u = tvec.dot(pvec) * inv_det;
+  if (u < 0 || u > 1) {
+    return false;
+  }
 
-    cv::Vec3d qvec = tvec.cross(e1);
-    double v = ray.direction.dot(qvec) * inv_det;
-    if (v < 0 || v + u > 1)
-        return 0;
+  cv::Vec3d qvec = tvec.cross(e1);
+  double v = ray.direction.dot(qvec) * inv_det;
+  if (v < 0 || v + u > 1) {
+    return false;
+  }
 
-    t = e2.dot(qvec) * inv_det;
-    return t > 1e-8;
+  t = e2.dot(qvec) * inv_det;
+  return t > 1e-8;
+}
+
+//==============================================================================
+//================================ Light =======================================
+//==============================================================================
+Light::Light(const cv::Vec3d &new_position, double new_total_flux) : position(
+    new_position), total_intensity(new_total_flux) {
+}
+
+Light::Light(const cv::Vec3d &new_position, double new_total_flux,
+             std::map<int, double> new_spec_intensity) : position(
+    new_position), total_intensity(new_total_flux), spec_intensity(std::move(
+    new_spec_intensity)) {
 }
 
 //==============================================================================
 //================================ Camera ======================================
 //==============================================================================
-Camera::Camera() : width(1024), height(768), fov(M_PI / 3.f),
-                   origin({250, 300, 500}) {
-
+Camera::Camera(int width, int height, double fov, const cv::Vec3d &origin)
+    : width(width), height(height), fov(fov), origin(origin) {
 }
 
 int Camera::getWidth() const {
@@ -165,8 +179,6 @@ double Camera::getFov() const {
 
 //FIXME: Rename this method
 void Camera::getPicture() {
-
-
 }
 
 //==============================================================================
@@ -180,36 +192,35 @@ Scene::Scene() {
   spec_Kd_color_brs_0.insert(std::make_pair(500, 0.747));
   spec_Kd_color_brs_0.insert(std::make_pair(600, 0.74));
   spec_Kd_color_brs_0.insert(std::make_pair(700, 0.737));
-  materials.push_back(Material(spec_Kd_color_brs_0));
+  materials.emplace_back(Material(spec_Kd_color_brs_0));
 
   std::map<int, double> spec_Kd_color_brs_1;
   spec_Kd_color_brs_1.insert(std::make_pair(400, 0.092));
   spec_Kd_color_brs_1.insert(std::make_pair(500, 0.285));
   spec_Kd_color_brs_1.insert(std::make_pair(600, 0.16));
   spec_Kd_color_brs_1.insert(std::make_pair(700, 0.159));
-  materials.push_back(Material(spec_Kd_color_brs_1));
+  materials.emplace_back(Material(spec_Kd_color_brs_1));
 
   std::map<int, double> spec_Kd_color_brs_2;
   spec_Kd_color_brs_2.insert(std::make_pair(400, 0.04));
   spec_Kd_color_brs_2.insert(std::make_pair(500, 0.058));
   spec_Kd_color_brs_2.insert(std::make_pair(600, 0.287));
   spec_Kd_color_brs_2.insert(std::make_pair(700, 0.642));
-  materials.push_back(Material(spec_Kd_color_brs_2));
+  materials.emplace_back(Material(spec_Kd_color_brs_2));
 
   std::map<int, double> spec_Kd_color_brs_3;
   spec_Kd_color_brs_3.insert(std::make_pair(400, 0.343));
   spec_Kd_color_brs_3.insert(std::make_pair(500, 0.747));
   spec_Kd_color_brs_3.insert(std::make_pair(600, 0.74));
   spec_Kd_color_brs_3.insert(std::make_pair(700, 0.737));
-  materials.push_back(Material(spec_Kd_color_brs_3));
+  materials.emplace_back(Material(spec_Kd_color_brs_3));
 
   std::map<int, double> spec_Kd_color_brs_4;
   spec_Kd_color_brs_4.insert(std::make_pair(400, 0.343));
   spec_Kd_color_brs_4.insert(std::make_pair(500, 0.747));
   spec_Kd_color_brs_4.insert(std::make_pair(600, 0.74));
   spec_Kd_color_brs_4.insert(std::make_pair(700, 0.737));
-  materials.push_back(Material(spec_Kd_color_brs_4));
-
+  materials.emplace_back(Material(spec_Kd_color_brs_4));
 
   // Lights
   //Хардкод, так как в файле нет свойств и положения источника света
@@ -230,11 +241,13 @@ Scene::Scene() {
   spec_intensity.insert(
       std::make_pair(700, total_intensity * (Isim_700 / Itotal)));
 
-  lights.push_back(Light(cv::Vec3d(278, 545, -279.5), 1445872,
-                         spec_intensity)); //Было Light(cv::Vec3d(278, -279.5, 548.7), 1445872, spec_intensity)
+  lights.emplace_back(Light(cv::Vec3d(278, 545, -279.5), 1445872,
+                            spec_intensity)); //Было Light(cv::Vec3d(278, -279.5, 548.7), 1445872, spec_intensity)
   //278, 548.7, -279.5
+}
 
-  cameras.emplace_back(Camera());
+void Scene::setNewCamera(const Camera &camera) {
+  cameras.emplace_back(camera);
 }
 
 int Scene::load(const std::string &path_to_file) {
@@ -266,8 +279,7 @@ int Scene::load(const std::string &path_to_file) {
                                    points[points_size + number_of_triangles[1]],
                                    points[points_size + number_of_triangles[2]],
                                    object_id[object_id.size() - 1],
-                                   &materials[object_id[object_id.size() - 1]]
-      );
+                                   &materials[object_id[object_id.size() - 1]]);
       triangles.push_back(triangle);
       continue;
     }
@@ -316,8 +328,8 @@ Ray Scene::fireRay(Ray &ray) {
   }
 
   for (auto &item : material.spec_Kd_color) {
-    ray.bright_coefs.find(item.first)->second =
-        (ray.bright_coefs.find(item.first)->second) * item.second;
+    ray.bright_coefficient.find(item.first)->second =
+        (ray.bright_coefficient.find(item.first)->second) * item.second;
   }
 
   for (int i = 0; i < lights.size(); i++) {
@@ -332,7 +344,7 @@ Ray Scene::fireRay(Ray &ray) {
       double E = ((lights[i].spec_intensity.find(item.first)->second) /
                   (dist * dist)) * cos_teta;
       item.second =
-          (E * ray.bright_coefs.find(item.first)->second) / (double) M_PI;
+          (E * ray.bright_coefficient.find(item.first)->second) / (double) M_PI;
     }
   }
 
