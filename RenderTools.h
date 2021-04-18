@@ -18,9 +18,9 @@ double get_length(const cv::Vec3d &vec);
 //================================ Point =======================================
 //==============================================================================
 struct Point {
-    double x = 0;
-    double y = 0;
-    double z = 0;
+  double x = 0;
+  double y = 0;
+  double z = 0;
 
   // FIXME: На будущее
 //  double n_x = 0;
@@ -33,16 +33,17 @@ struct Point {
 //==============================================================================
 class Ray {
 public:
-    Ray() = default;
-    Ray(const cv::Vec3d &origin, const cv::Vec3d &direction);
-    Ray(const cv::Vec3d &new_origin, const cv::Vec3d &new_direction,
-        std::map<std::string, double> bright_coefs, std::map<std::string, double> L);
+  Ray() = default;
+  Ray(const cv::Vec3d &origin, const cv::Vec3d &direction);
+  Ray(const cv::Vec3d &new_origin, const cv::Vec3d &new_direction,
+      std::map<std::string, double> bright_coefs,
+      std::map<std::string, double> L);
 
 public:
-    cv::Vec3d origin;
-    cv::Vec3d direction;
-    std::map<std::string, double> bright_coefficient; //spec
-    std::map<std::string, double> L;
+  cv::Vec3d origin;
+  cv::Vec3d direction;
+  std::map<std::string, double> bright_coefficient; //spec
+  std::map<std::string, double> L;
 };
 
 //==============================================================================
@@ -51,12 +52,12 @@ public:
 // FIXME: Maybe smth is private
 class Material {
 public:
-    Material() = default;
-    Material(std::map<std::string, double> rgb_Kd_color);
+  Material() = default;
+  Material(std::map<std::string, double> rgb_Kd_color);
 
 public:
-    //double kd = -1; // Diffuse reflection coef 1 = 100%
-    std::map<std::string, double> rgb_Kd_color; // int wavelength, Kd color
+  //double kd = -1; // Diffuse reflection coef 1 = 100%
+  std::map<std::string, double> rgb_Kd_color; // int wavelength, Kd color
 };
 
 //==============================================================================
@@ -65,22 +66,22 @@ public:
 // FIXME: Maybe smth is private
 class Triangle {
 public:
-    Triangle() = default;
+  Triangle() = default;
 
-    Triangle(const cv::Vec3d &v0, const cv::Vec3d &v1, const cv::Vec3d &v2);
-    Triangle(const cv::Vec3d &v0, const cv::Vec3d &v1, const cv::Vec3d &v2,
-             const int &object_id);
-    Triangle(const cv::Vec3d &v0, const cv::Vec3d &v1, const cv::Vec3d &v2,
-             const int &object_id,
-             const Material *material);
-    cv::Vec3d getNormal() const;
-    cv::Vec3d getNormalByObserver(const cv::Vec3d &observer) const;
-    bool intersect(const Ray &ray, double &t) const;
+  Triangle(const cv::Vec3d &v0, const cv::Vec3d &v1, const cv::Vec3d &v2);
+  Triangle(const cv::Vec3d &v0, const cv::Vec3d &v1, const cv::Vec3d &v2,
+           const int &object_id);
+  Triangle(const cv::Vec3d &v0, const cv::Vec3d &v1, const cv::Vec3d &v2,
+           const int &object_id,
+           const Material *material);
+  cv::Vec3d getNormal() const;
+  cv::Vec3d getNormalByObserver(const cv::Vec3d &observer) const;
+  bool intersect(const Ray &ray, double &t) const;
 
 public:
-    cv::Vec3d v0, v1, v2;
-    int object_id = -1;
-    const Material *material;
+  cv::Vec3d v0, v1, v2;
+  int object_id = -1;
+  const Material *material;
 };
 
 //==============================================================================
@@ -88,15 +89,15 @@ public:
 //==============================================================================
 struct Light {
 public:
-    Light() = default;
-    Light(const cv::Vec3d &new_position, double new_total_flux);
-    Light(const cv::Vec3d &new_position, double new_total_flux,
-          std::map<std::string, double> new_spec_intensity);
+  Light() = default;
+  Light(const cv::Vec3d &new_position, double new_total_flux);
+  Light(const cv::Vec3d &new_position, double new_total_flux,
+        std::map<std::string, double> new_spec_intensity);
 
 public:
-    cv::Vec3d position;
-    double total_intensity = 0; // W/sr
-    std::map<std::string, double> spec_intensity; // int wavelength, double intensity
+  cv::Vec3d position;
+  double total_intensity = 0; // W/sr
+  std::map<std::string, double> spec_intensity; // int wavelength, double intensity
 };
 
 //==============================================================================
@@ -104,20 +105,20 @@ public:
 //==============================================================================
 class Camera {
 public:
-    Camera(int width, int height, double fov, const cv::Vec3d &origin);
+  Camera(int width, int height, double fov, const cv::Vec3d &origin);
 
-    void getPicture();
+  void getPicture();
 
-    int getWidth() const;
-    int getHeight() const;
-    double getFov() const;
+  int getWidth() const;
+  int getHeight() const;
+  double getFov() const;
 
 private:
-    const int width = -1;
-    const int height = -1;
-    const double fov = -1.0;
+  const int width = -1;
+  const int height = -1;
+  const double fov = -1.0;
 
-    const cv::Vec3d origin = {-1.0, -1.0, -1.0};
+  const cv::Vec3d origin = {-1.0, -1.0, -1.0};
 };
 
 //==============================================================================
@@ -125,23 +126,23 @@ private:
 //==============================================================================
 class Scene {
 public:
-    Scene();
-    void render();
-    Ray fireRay(Ray &ray);
-    int load(const std::string &path_to_file);
-    void setNewCamera(const Camera &camera);
+  Scene();
+  void render();
+  Ray fireRay(Ray &ray);
+  int load(const std::string &path_to_file);
+  void setNewCamera(const Camera &camera);
 
 private:
-    bool
-    intersect(const Ray &ray, cv::Vec3d &hit, cv::Vec3d &N, Material &material);
+  bool
+  intersect(const Ray &ray, cv::Vec3d &hit, cv::Vec3d &N, Material &material);
 
 private:
-    std::vector<cv::Vec3d> points;
-    std::vector<Triangle> triangles;
-    std::vector<int> object_id;
-    std::vector<Light> lights;
-    std::vector<Material> materials;
-    std::vector<Camera> cameras;
+  std::vector<cv::Vec3d> points;
+  std::vector<Triangle> triangles;
+  std::vector<int> object_id;
+  std::vector<Light> lights;
+  std::vector<Material> materials;
+  std::vector<Camera> cameras;
 };
 
 #endif //RENDER_TOOLS_H
