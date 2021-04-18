@@ -15,11 +15,32 @@ double get_length(const cv::Vec3d &vec) {
 cv::Vec3d get_normalized(const cv::Vec3d &vec) {
     double length = get_length(vec);
 
-    if (length == 0) {
-        return vec;
-    }
-    return vec / length;
+  if (length == 0) {
+    return vec;
+  }
+  return vec / length;
 }
+
+//// FIXME: Change signature (material)
+//bool Scene::intersect(const Ray &ray, cv::Vec3d &hit, cv::Vec3d &N,
+//                      Material &material) {
+//
+//  double min_distance_to_triangle = std::numeric_limits<double>::max();
+//
+//  for (auto &triangle : triangles) {
+//    double distance_to_triangle = -1.0;
+//    if (triangle.intersect(ray, distance_to_triangle) &&
+//        distance_to_triangle < min_distance_to_triangle) {
+//      min_distance_to_triangle = distance_to_triangle;
+//      hit = ray.origin + ray.direction * distance_to_triangle;
+//      N = triangle.getNormalByObserver(ray.origin - hit);
+//      material = *triangle.material;
+//    }
+//  }
+//
+//  return min_distance_to_triangle < std::numeric_limits<double>::max();
+//>>>>>>> master
+//}
 
 Ray fill_wavelength(Ray ray, std::vector<Light> lights) {
     std::map<std::string, double> bright_coefs;
@@ -37,12 +58,13 @@ Ray fill_wavelength(Ray ray, std::vector<Light> lights) {
 
     return ray;
 }
+
 //==============================================================================
 //================================ Ray =========================================
 //==============================================================================
 Ray::Ray(const cv::Vec3d &origin, const cv::Vec3d &direction) : origin(origin),
                                                                 direction(
-                                                                        direction) {
+                                                                    direction) {
 }
 
 Ray::Ray(const cv::Vec3d &new_origin, const cv::Vec3d &new_direction,
@@ -76,26 +98,25 @@ Triangle::Triangle(const cv::Vec3d &v0, const cv::Vec3d &v1,
                    const int &object_id,
                    const Material *material) :
         v0(v0), v1(v1), v2(v2), object_id(object_id), material(material) {
-
 }
 
 cv::Vec3d Triangle::getNormal() const {
-    cv::Vec3d normal = (v1 - v0).cross(v2 - v0);
-    normal = get_normalized(normal);
-    return normal;
+  cv::Vec3d normal = (v1 - v0).cross(v2 - v0);
+  normal = get_normalized(normal);
+  return normal;
 }
 
 cv::Vec3d Triangle::getNormalByObserver(const cv::Vec3d &observer) const {
-    cv::Vec3d normal = (v1 - v0).cross(v2 - v0);
+  cv::Vec3d normal = (v1 - v0).cross(v2 - v0);
 
+  normal = get_normalized(normal);
+
+  if (get_normalized(observer).dot(normal) < 0) {
+    normal = (v2 - v0).cross(v1 - v0);
     normal = get_normalized(normal);
+  }
 
-    if (get_normalized(observer).dot(normal) < 0) {
-        normal = (v2 - v0).cross(v1 - v0);
-        normal = get_normalized(normal);
-    }
-
-    return normal;
+  return normal;
 }
 
 bool Triangle::intersect(const Ray &ray, double &t) const {
@@ -219,37 +240,41 @@ Scene::Scene() {
     //278, 548.7, -279.5
 }
 
+void Scene::setNewCamera(const Camera &camera) {
+  cameras.emplace_back(camera);
+}
+
 // FIXME: Change signature
 Ray Scene::fireRay(Ray &ray) {
-    cv::Vec3d hit, N;
-    Material material;
+  cv::Vec3d hit, N;
+  Material material;
 
-    if (!intersect(ray, hit, N, material)) {
-        return ray;
-    }
-
-    for (auto &item : material.rgb_Kd_color) {
-
-        ray.bright_coefficient.find(item.first)->second *= item.second;
-    }
-
-    for (int i = 0; i < lights.size(); i++) {
-        cv::Vec3d light_dir = get_normalized(lights[i].position - hit);
-        double dist = get_length(lights[i].position - hit);
-        double cos_teta = light_dir.dot(N);
-        if (cos_teta <= 0) {
-            return ray;
-        }
-
-        for (auto &item : ray.L) {
-            double E = ((lights[i].spec_intensity.find(item.first)->second) /
-                        (dist * dist)) * cos_teta;
-            item.second =
-                    (E * ray.bright_coefficient.find(item.first)->second) / (double) M_PI;
-        }
-    }
-
+  if (!intersect(ray, hit, N, material)) {
     return ray;
+  }
+
+  for (auto &item : material.rgb_Kd_color) {
+
+    ray.bright_coefficient.find(item.first)->second *= item.second;
+  }
+
+  for (int i = 0; i < lights.size(); i++) {
+    cv::Vec3d light_dir = get_normalized(lights[i].position - hit);
+    double dist = get_length(lights[i].position - hit);
+    double cos_teta = light_dir.dot(N);
+    if (cos_teta <= 0) {
+      return ray;
+    }
+
+    for (auto &item : ray.L) {
+      double E = ((lights[i].spec_intensity.find(item.first)->second) /
+                  (dist * dist)) * cos_teta;
+      item.second =
+          (E * ray.bright_coefficient.find(item.first)->second) / (double) M_PI;
+    }
+  }
+
+  return ray;
 }
 
 // FIXME: Change signature (material)
@@ -272,76 +297,72 @@ bool Scene::intersect(const Ray &ray, cv::Vec3d &hit, cv::Vec3d &N,
     return min_distance_to_triangle < std::numeric_limits<double>::max();
 }
 
-void Scene::setNewCamera(const Camera &camera) {
-    cameras.emplace_back(camera);
-}
-
 int Scene::load(const std::string &path_to_file) {
-    int exit_code = 0;
+  int exit_code = 0;
 
-    std::string s;
-    std::ifstream file(path_to_file);
-    int state = 0; //1 - define breps brs_ найден, 2 - Number of vertices найден, Number of triangles найден
-    int points_size = 0;
-    while (getline(file, s)) {
+  std::string s;
+  std::ifstream file(path_to_file);
+  int state = 0; //1 - define breps brs_ найден, 2 - Number of vertices найден, Number of triangles найден
+  int points_size = 0;
+  while (getline(file, s)) {
 
-        if (s.find("Number of parts") != std::string::npos) {
-            state = 0;
-            continue;
-        }
-
-        if (s.find("Number of triangles") != std::string::npos) {
-            state = 3;
-            continue;
-        }
-
-        if (state == 3) {
-            std::istringstream iss(s);
-            std::vector<int> number_of_triangles;
-            for (std::string s; iss >> s;)
-                number_of_triangles.push_back(stoi(s));
-
-            Triangle triangle = Triangle(points[points_size + number_of_triangles[0]],
-                                         points[points_size + number_of_triangles[1]],
-                                         points[points_size + number_of_triangles[2]],
-                                         object_id[object_id.size() - 1],
-                                         &materials[object_id[object_id.size() - 1]]);
-            triangles.push_back(triangle);
-            continue;
-        }
-
-        if (s.find("define breps brs_") != std::string::npos) {
-            std::istringstream iss(s);
-            std::string token;
-            while (getline(iss, token, '_')) {
-            }
-            object_id.push_back(stoi(token));
-            state = 1;
-            continue;
-        }
-
-        if (s.find("Number of vertices") != std::string::npos) {
-            state = 2;
-            points_size = points.size();
-            continue;
-        }
-
-        if (state == 2) {
-            std::istringstream iss(s);
-            std::vector<double> cords;
-            for (std::string s; iss >> s;)
-                cords.push_back(stod(s));
-            cv::Vec3d new_point = cv::Vec3d(cords[0], cords[1],
-                                            cords[2]); // Было cv::Vec3d(cords[0], cords[1], cords[2])
-            points.push_back(new_point);
-        }
+    if (s.find("Number of parts") != std::string::npos) {
+      state = 0;
+      continue;
     }
 
-    file.close();
+    if (s.find("Number of triangles") != std::string::npos) {
+      state = 3;
+      continue;
+    }
 
-    std::cout << triangles.size() << std::endl;
+    if (state == 3) {
+      std::istringstream iss(s);
+      std::vector<int> number_of_triangles;
+      for (std::string s; iss >> s;)
+        number_of_triangles.push_back(stoi(s));
 
-    return exit_code;
+      Triangle triangle = Triangle(points[points_size + number_of_triangles[0]],
+                                   points[points_size + number_of_triangles[1]],
+                                   points[points_size + number_of_triangles[2]],
+                                   object_id[object_id.size() - 1],
+                                   &materials[object_id[object_id.size() - 1]]);
+      triangles.push_back(triangle);
+      continue;
+    }
+
+    if (s.find("define breps brs_") != std::string::npos) {
+      std::istringstream iss(s);
+      std::string token;
+      while (getline(iss, token, '_')) {
+      }
+      object_id.push_back(stoi(token));
+      state = 1;
+      continue;
+    }
+
+    if (s.find("Number of vertices") != std::string::npos) {
+      state = 2;
+      points_size = points.size();
+      continue;
+    }
+
+    if (state == 2) {
+      std::istringstream iss(s);
+      std::vector<double> cords;
+      for (std::string s; iss >> s;)
+        cords.push_back(stod(s));
+      cv::Vec3d new_point = cv::Vec3d(cords[0], cords[1],
+                                      cords[2]); // Было cv::Vec3d(cords[0], cords[1], cords[2])
+      points.push_back(new_point);
+    }
+  }
+
+  file.close();
+
+  std::cout << triangles.size() << std::endl;
+
+  return exit_code;
 }
 
 
@@ -375,9 +396,9 @@ void Scene::render() {
         std::ofstream fout("../data/results.txt");
 
         std::vector<std::string> wavelengths;
-        wavelengths.push_back("r");
-        wavelengths.push_back("g");
-        wavelengths.push_back("b");
+        wavelengths.emplace_back("r");
+        wavelengths.emplace_back("g");
+        wavelengths.emplace_back("b");
 
         for (int k = 0; k < wavelengths.size(); k++) {
             fout << "wavelength" << " " << wavelengths[k] << std::endl;

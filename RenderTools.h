@@ -22,7 +22,7 @@ struct Point {
     double y = 0;
     double z = 0;
 
-    // FIXME: На будущее
+  // FIXME: На будущее
 //  double n_x = 0;
 //  double n_y = 0;
 //  double n_z = 0;
