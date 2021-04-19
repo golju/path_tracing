@@ -1,4 +1,4 @@
-#include "RenderTools.h"
+#include "RenderLibrary.h"
 
 #include <fstream>
 #include <iostream>
@@ -80,12 +80,6 @@ Triangle::Triangle(const cv::Vec3d &v0, const cv::Vec3d &v1,
     v0(v0), v1(v1), v2(v2), object_id(object_id), material(material) {
 }
 
-cv::Vec3d Triangle::getNormal() const {
-  cv::Vec3d normal = (v1 - v0).cross(v2 - v0);
-  normal = get_normalized(normal);
-  return normal;
-}
-
 cv::Vec3d Triangle::getNormalByObserver(const cv::Vec3d &observer) const {
   cv::Vec3d normal = (v1 - v0).cross(v2 - v0);
 
@@ -158,10 +152,6 @@ double Camera::getFov() const {
   return fov;
 }
 
-//FIXME: Rename this method
-void Camera::getPicture() {
-}
-
 //==============================================================================
 //================================ Scene =======================================
 //==============================================================================
@@ -216,16 +206,17 @@ Scene::Scene() {
 
   Light a = Light(cv::Vec3d(278, 545, -279.5), 1445872,
                   spec_intensity);
-  lights.push_back(
-      a); //Было Light(cv::Vec3d(278, -279.5, 548.7), 1445872, spec_intensity)
-  //278, 548.7, -279.5
+  lights.push_back(a);
 }
 
 void Scene::setNewCamera(const Camera &camera) {
   cameras.emplace_back(camera);
 }
 
-// FIXME: Change signature
+void Scene::setSavePath(const std::string &path_to_save_result) {
+  this->path_to_save_result = path_to_save_result;
+}
+
 Ray Scene::fireRay(Ray &ray) {
   cv::Vec3d hit, N;
   Material material;
@@ -268,7 +259,6 @@ Ray Scene::fireRay(Ray &ray) {
   return ray;
 }
 
-// FIXME: Change signature (material)
 bool Scene::intersect(const Ray &ray, cv::Vec3d &hit, cv::Vec3d &N,
                       Material &material) {
 
@@ -293,7 +283,7 @@ int Scene::load(const std::string &path_to_file) {
 
   std::string s;
   std::ifstream file(path_to_file);
-  int state = 0; //1 - define breps brs_ найден, 2 - Number of vertices найден, Number of triangles найден
+  int state = 0;
   int points_size = 0;
   while (getline(file, s)) {
 
@@ -384,7 +374,7 @@ void Scene::render() {
     }
 
     // FIXME: Change save path
-    std::ofstream fout("../data/results.txt");
+    std::ofstream fout(path_to_save_result);
 
     std::vector<std::string> wavelengths;
     wavelengths.emplace_back("r");

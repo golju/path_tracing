@@ -1,6 +1,5 @@
 #ifndef RENDER_TOOLS_H
 #define RENDER_TOOLS_H
-#define _USE_MATH_DEFINES
 
 #include <opencv2/core/matx.hpp>
 
@@ -13,20 +12,6 @@
 //==============================================================================
 cv::Vec3d get_normalized(const cv::Vec3d &vec);
 double get_length(const cv::Vec3d &vec);
-
-//==============================================================================
-//================================ Point =======================================
-//==============================================================================
-struct Point {
-  double x = 0;
-  double y = 0;
-  double z = 0;
-
-  // FIXME: На будущее
-//  double n_x = 0;
-//  double n_y = 0;
-//  double n_z = 0;
-};
 
 //==============================================================================
 //================================ Ray =========================================
@@ -42,22 +27,20 @@ public:
 public:
   cv::Vec3d origin;
   cv::Vec3d direction;
-  std::map<std::string, double> bright_coefficient; //spec
+  std::map<std::string, double> bright_coefficient;
   std::map<std::string, double> L;
 };
 
 //==============================================================================
 //================================ Material ====================================
 //==============================================================================
-// FIXME: Maybe smth is private
 class Material {
 public:
   Material() = default;
   Material(std::map<std::string, double> rgb_Kd_color);
 
 public:
-  //double kd = -1; // Diffuse reflection coef 1 = 100%
-  std::map<std::string, double> rgb_Kd_color; // int wavelength, Kd color
+  std::map<std::string, double> rgb_Kd_color;
 };
 
 //==============================================================================
@@ -74,14 +57,15 @@ public:
   Triangle(const cv::Vec3d &v0, const cv::Vec3d &v1, const cv::Vec3d &v2,
            const int &object_id,
            const Material *material);
-  cv::Vec3d getNormal() const;
   cv::Vec3d getNormalByObserver(const cv::Vec3d &observer) const;
   bool intersect(const Ray &ray, double &t) const;
 
+
 public:
+  const Material *material;
+private:
   cv::Vec3d v0, v1, v2;
   int object_id = -1;
-  const Material *material;
 };
 
 //==============================================================================
@@ -107,8 +91,6 @@ class Camera {
 public:
   Camera(int width, int height, double fov, const cv::Vec3d &origin);
 
-  void getPicture();
-
   int getWidth() const;
   int getHeight() const;
   double getFov() const;
@@ -130,6 +112,7 @@ public:
   void render();
   Ray fireRay(Ray &ray);
   int load(const std::string &path_to_file);
+  void setSavePath(const std::string &path_to_save_result);
   void setNewCamera(const Camera &camera);
 
 private:
@@ -137,6 +120,8 @@ private:
   intersect(const Ray &ray, cv::Vec3d &hit, cv::Vec3d &N, Material &material);
 
 private:
+  std::string path_to_save_result = "../data/results.txt";
+
   std::vector<cv::Vec3d> points;
   std::vector<Triangle> triangles;
   std::vector<int> object_id;

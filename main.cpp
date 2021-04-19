@@ -1,10 +1,12 @@
-#include "RenderTools.h"
+#include "RenderLibrary.h"
 
 #include <iostream>
 
 int main() {
   // New scene
   std::string path_to_scene_description = "../data/cornel_box0.shp";
+  std::string path_to_save_result = "../data/result.txt";
+
   Scene scene;
   if (int exit_code = scene.load(path_to_scene_description); exit_code != 0) {
     std::cout << "Scene: failed to load scene description: " << exit_code
@@ -18,6 +20,7 @@ int main() {
   cv::Vec3d origin({250, 300, 500});
   Camera camera(width, height, fov, origin);
   scene.setNewCamera(camera);
+  scene.setSavePath(path_to_save_result);
 
   scene.render();
   return 0;
