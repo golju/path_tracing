@@ -247,6 +247,16 @@ Ray Scene::fireRay(Ray &ray) {
       return ray;
     }
 
+    cv::Vec3d shadow_origin = hit + N * 1e-3;
+    Ray shadow_ray = Ray(shadow_origin, light_dir);
+    cv::Vec3d shadow_hit, shadow_N;
+    Material shadow_material;
+
+    if (intersect(shadow_ray, shadow_hit, shadow_N, shadow_material) &&
+        get_length(shadow_hit - shadow_origin) < dist) {
+      continue;
+    }
+
     for (auto &item : ray.L) {
       double E = ((lights[i].spec_intensity.find(item.first)->second) /
                   (dist * dist)) * cos_teta;
