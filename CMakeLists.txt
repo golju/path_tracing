@@ -9,7 +9,9 @@ set(${PROJECT_NAME}_SOURCE_FILES
         )
 
 # Packages
-set(OpenCV_DIR "C:\\opencv\\opencv\\build\\x64\\vc15\\lib")
+if (WIN32)
+    set(OpenCV_DIR "C:\\opencv\\opencv\\build\\x64\\vc15\\lib")
+endif(WIN32)
 find_package(OpenCV REQUIRED)
 include_directories( ${OpenCV_INCLUDE_DIRS} )
 
